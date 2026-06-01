@@ -1,6 +1,9 @@
 package org.example.calendarapp;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class CalendarEntry {
 
@@ -14,6 +17,7 @@ public class CalendarEntry {
     private int endMinute;
     private boolean endPM;
     private String color;
+    private static final ArrayList<CalendarEntry> entryList = new ArrayList<>();
 
     public CalendarEntry(String title, String description, LocalDate date,
                          int startHour, int startMinute, boolean startPM,
@@ -29,6 +33,16 @@ public class CalendarEntry {
         this.endMinute = endMinute;
         this.endPM = endPM;
         this.color = color;
+    }
+
+    public static void addEvent(CalendarEntry entry){ entryList.add(entry);}
+
+    public static List<CalendarEntry> getEntryList(){
+        return Collections.unmodifiableList(entryList);
+    }
+
+    public String toString(){
+        return String.format("Title: %s\nDescription: %s", this.title, this.description);
     }
 
     public String getTitle()       { return title; }

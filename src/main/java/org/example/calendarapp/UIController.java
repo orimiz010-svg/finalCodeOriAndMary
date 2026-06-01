@@ -9,8 +9,9 @@ import javafx.scene.paint.Color;
 import java.net.URL;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.util.Calendar;
 import java.util.ResourceBundle;
-
+import java.time.temporal.TemporalAdjusters;
 
 public class UIController implements Initializable {
 
@@ -31,6 +32,9 @@ public class UIController implements Initializable {
     @FXML private TextField titleField;
     @FXML private TextField descriptionField;
     @FXML private DatePicker datePicker1;
+
+    //----- main date picker------
+    @FXML private DatePicker datePicker;
 
     // ---------- spinners ----------
     @FXML private Spinner<Integer> hourSpinner1;
@@ -61,6 +65,7 @@ public class UIController implements Initializable {
 
     private Label currentTaskLabel = null;
 
+
     // ---------- spinner value factories ----------
     private SpinnerValueFactory<Integer> hourSpin1;
     private SpinnerValueFactory<Integer> minuteSpin1;
@@ -89,6 +94,49 @@ public class UIController implements Initializable {
     // -------------------------------------------------------
     //  CREATE BUTTON — main logic
     // -------------------------------------------------------
+    private Label createTaskCard(CalendarEntry entry, int col) {
+        double HOUR_HEIGHT = 50.0;
+        double COL_WIDTH   = 100.0;
+
+        // Convert hours to 24-hour format if needed for your math
+        int startHour24 = entry.getStartHour() + (entry.isStartPM() && entry.getStartHour() != 12 ? 12 : 0);
+        if (!entry.isStartPM() && entry.getStartHour() == 12) startHour24 = 0;
+
+        int endHour24 = entry.getEndHour() + (entry.isEndPM() && entry.getEndHour() != 12 ? 12 : 0);
+        if (!entry.isEndPM() && entry.getEndHour() == 12) endHour24 = 0;
+
+        // Your exact positioning math
+        double topY    = startHour24 * HOUR_HEIGHT;
+        double height  = (endHour24 - startHour24) * HOUR_HEIGHT;
+        if (height < 10) height = 10;
+
+        double leftX   = col * COL_WIDTH + 2;
+        double width   = COL_WIDTH - 4;
+
+        // Build the task label
+        Label taskLabel = new Label(entry.getTitle());
+        taskLabel.setLayoutX(leftX);
+        taskLabel.setLayoutY(topY);
+        taskLabel.setPrefWidth(width);
+        taskLabel.setPrefHeight(height);
+
+        // Tag it so our date-picker clear routine can find it later
+        taskLabel.setId("taskLabel");
+
+        taskLabel.setStyle(
+                "-fx-background-color: " + entry.getColor() + ";" +
+                        "-fx-background-radius: 5;" +
+                        "-fx-padding: 2 4 2 4;" +
+                        "-fx-font-size: 11px;" +
+                        "-fx-wrap-text: true;"
+        );
+
+        // Setup the click handler right here
+        taskLabel.setOnMouseClicked(e -> openViewTaskPane(entry, taskLabel));
+
+        return taskLabel;
+    }
+
     @FXML
     protected void onCreateButtonClick() {
 
@@ -115,31 +163,7 @@ public class UIController implements Initializable {
         boolean endPM = amPm2 != null && amPm2.getText().equals("PM");
         double endHour24 = convertToHour24(endHour12, endMin, endPM);
 
-        // 5. pixel math — 1 hour = 50px
-        double HOUR_HEIGHT = 50.0;
-        double COL_WIDTH   = 100.0;
-
-        double topY    = startHour24 * HOUR_HEIGHT;
-        double height  = (endHour24 - startHour24 + (endPM ? 1 : 0)) * HOUR_HEIGHT;
-        if (height < 10) height = 10; // minimum visible height
-        double leftX   = col * COL_WIDTH + 2;
-        double width   = COL_WIDTH - 4;
-
-        // 6. build the task label
-        Label taskLabel = new Label(title);
-        taskLabel.setLayoutX(leftX);
-        taskLabel.setLayoutY(topY);
-        taskLabel.setPrefWidth(width);
-        taskLabel.setPrefHeight(height);
-        taskLabel.setStyle(
-                "-fx-background-color: " + selectedColor + ";" +
-                        "-fx-background-radius: 5;" +
-                        "-fx-padding: 2 4 2 4;" +
-                        "-fx-font-size: 11px;" +
-                        "-fx-wrap-text: true;"
-        );
-
-        // 7. store entry and attach click handler
+        // 5. store entry
         CalendarEntry entry = new CalendarEntry(
                 title,
                 descriptionField.getText(),
@@ -148,16 +172,61 @@ public class UIController implements Initializable {
                 endHour12,   endMin,   endPM,
                 selectedColor
         );
-        taskLabel.setOnMouseClicked(e -> openViewTaskPane(entry, taskLabel));
 
-        // 8. add to the overlay pane
-        weeklyGrid.getChildren().add(taskLabel);
+
+        CalendarEntry.addEvent(entry);
+        Label taskLabel = createTaskCard(entry, col);
+
+        // Get today's date
+        LocalDate today = LocalDate.now();
+
+        // Calculate the Monday and Sunday of this exact week
+        LocalDate startOfWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate endOfWeek = today.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+
+        boolean isThisWeek = (date.isEqual(startOfWeek) || date.isAfter(startOfWeek))
+                && (date.isEqual(endOfWeek)   || date.isBefore(endOfWeek));
+
+        if (isThisWeek) {
+            taskLabel.setOnMouseClicked(e -> openViewTaskPane(entry, taskLabel));
+            weeklyGrid.getChildren().add(taskLabel);
+        }
 
         // 9. close and reset
         createNewTaskPane.setVisible(false);
         titleField.clear();
         descriptionField.clear();
         datePicker1.setValue(null);
+    }
+
+
+    // create a method that shows tasks based on date picker
+
+    @FXML
+    protected void updateWeeklyView(){
+        LocalDate selectedDate = datePicker.getValue();
+
+        if (selectedDate == null){
+            return;} // if date is not selected
+
+        // clearing weeklyGridView
+        weeklyGrid.getChildren().removeIf(node -> node instanceof Label);
+
+        // 2. Loop through your list
+        for (CalendarEntry entry : CalendarEntry.getEntryList()) {
+
+            // 3. If the entry matches the selected date
+            if (entry.getDate().isEqual(selectedDate)) {
+
+                int col = entry.getDate().getDayOfWeek().getValue() - 1;
+
+                Label perfectTaskLabel = createTaskCard(entry, col);
+
+                weeklyGrid.getChildren().add(perfectTaskLabel);
+            }
+        }
+
+
     }
 
     // -------------------------------------------------------
@@ -191,16 +260,20 @@ public class UIController implements Initializable {
             );
         }
         selectColorPane.setVisible(false);
+
     }
 
     @FXML
     protected void onViewTaskExitButtonClick() {
         viewTaskPane.setVisible(false);
+        //viewtaskpane is what shows task info
     }
 
     @FXML
     protected void onCompleteButtonClick() {
-        // you can add strikethrough or remove the task later
+        if (currentTaskLabel != null) {
+            weeklyGrid.getChildren().remove(currentTaskLabel);
+        }
         viewTaskPane.setVisible(false);
     }
 
