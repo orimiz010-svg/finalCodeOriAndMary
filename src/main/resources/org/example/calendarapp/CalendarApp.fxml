@@ -80,7 +80,7 @@
                <content>
                   <HBox fillHeight="false" minWidth="700.0" prefHeight="100.0" prefWidth="200.0">
                      <children>
-                        <VBox maxWidth="60.0" minWidth="60.0" prefHeight="200.0" prefWidth="100.0" spacing="34.0" HBox.hgrow="ALWAYS">
+                        <VBox maxWidth="60.0" minWidth="60.0" prefHeight="200.0" prefWidth="100.0" spacing="30.0" HBox.hgrow="ALWAYS">
                            <children>
                               <Label text="12AM">
                                  <font>

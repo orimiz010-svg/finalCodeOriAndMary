@@ -178,18 +178,17 @@ public class UIController implements Initializable {
         Label taskLabel = createTaskCard(entry, col);
 
         // Get today's date
-        LocalDate today = LocalDate.now();
+        LocalDate viewedDate = datePicker.getValue();
 
-        // Calculate the Monday and Sunday of this exact week
-        LocalDate startOfWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-        LocalDate endOfWeek = today.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+        if (viewedDate != null) {
+            LocalDate startOfWeek = viewedDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+            LocalDate endOfWeek   = viewedDate.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
 
-        boolean isThisWeek = (date.isEqual(startOfWeek) || date.isAfter(startOfWeek))
-                && (date.isEqual(endOfWeek)   || date.isBefore(endOfWeek));
+            boolean isThisWeek = !date.isBefore(startOfWeek) && !date.isAfter(endOfWeek);
 
-        if (isThisWeek) {
-            taskLabel.setOnMouseClicked(e -> openViewTaskPane(entry, taskLabel));
-            weeklyGrid.getChildren().add(taskLabel);
+            if (isThisWeek) {
+                weeklyGrid.getChildren().add(taskLabel);
+            }
         }
 
         // 9. close and reset
@@ -208,17 +207,18 @@ public class UIController implements Initializable {
 
         if (selectedDate == null){
             return;} // if date is not selected
-
+        LocalDate startOfWeek = selectedDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate endOfWeek   = selectedDate.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
         // clearing weeklyGridView
         weeklyGrid.getChildren().removeIf(node -> node instanceof Label);
 
         // 2. Loop through your list
         for (CalendarEntry entry : CalendarEntry.getEntryList()) {
-
+               LocalDate entryDate = entry.getDate();
             // 3. If the entry matches the selected date
-            if (entry.getDate().isEqual(selectedDate)) {
+            if (!entryDate.isBefore(startOfWeek) && !entryDate.isAfter(endOfWeek)) {
 
-                int col = entry.getDate().getDayOfWeek().getValue() - 1;
+                int col = getDayColumn(entryDate.getDayOfWeek());
 
                 Label perfectTaskLabel = createTaskCard(entry, col);
 
